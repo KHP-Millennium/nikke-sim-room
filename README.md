@@ -1,2 +1,2 @@
-# gacha-calc
-Calculates damage and stuff for gacha games.
+# nikke-sim-room
+Fast, accurate calculations of NIKKE DPS without the need for an explicit step simulator.
