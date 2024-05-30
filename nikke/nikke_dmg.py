@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # pylint: disable=import-error
-from nikke_config import NIKKEConfig, NIKKEUtil, BuffWindow
+from nikke.nikke_config import NIKKEConfig, NIKKEUtil, BuffWindow
 
 class Graphs:
     """Graphing namespace for creating charts."""
@@ -205,13 +205,35 @@ class NIKKE:
                 modifiers: np.array,
                 crit_rate: float = 15,
                 crit_dmg: float = 50,
+                core_dmg: float = 100,
+                range_dmg: float = 30,
+                full_burst_dmg: float = 50,
                 core_hit: int = 0,
                 range_bonus: int = 0,
                 full_burst: int = 0,
                 element_bonus: int = 0):
-            self.modifiers = modifiers
+            # Total ATK (0)
+            # Charge Damage (1)
+            # Damage Taken (2)
+            # Elemental Damage (3)
+            # Damage Up (4)
+            # Total DEF (5)
+            self.attack = modifiers[0]
+            self.charge_dmg = modifiers[1]
+            self.damage_taken = modifiers[2]
+            self.element_dmg = modifiers[3]
+            self.damage_up = modifiers[4]
+            self.defense = modifiers[5]
+            self.flat_atk = modifiers[6]
+
+            # Full burst frame modifiers
             self.crit_rate = crit_rate
             self.crit_dmg = crit_dmg
+            self.core_dmg = core_dmg
+            self.range_dmg = range_dmg
+            self.full_burst_dmg = full_burst_dmg
+
+            # Flag counters
             self.core_hit = core_hit
             self.range_bonus = range_bonus
             self.full_burst = full_burst
@@ -224,25 +246,31 @@ class NIKKE:
             """
             stacks = int(buff.get('stacks', 1))
             if 'attack' in buff:
-                self.modifiers[0] += buff['attack'] * stacks
+                self.attack += buff['attack'] * stacks
             if 'charge_dmg' in buff:
-                self.modifiers[1] += buff['charge_dmg'] * stacks
+                self.charge_dmg += buff['charge_dmg'] * stacks
             if 'full_charge_dmg' in buff:
-                self.modifiers[1] += (buff['full_charge_dmg'] - 100) * stacks
+                self.charge_dmg += (buff['full_charge_dmg'] - 100) * stacks
             if 'damage_taken' in buff:
-                self.modifiers[2] += buff['damage_taken'] * stacks
+                self.damage_taken += buff['damage_taken'] * stacks
             if 'element_dmg' in buff:
-                self.modifiers[3] += buff['element_dmg'] * stacks
+                self.element_dmg += buff['element_dmg'] * stacks
             if 'damage_up' in buff:
-                self.modifiers[4] *= 1.0 + buff['damage_up'] / 100.0 * stacks
+                self.damage_up += buff['damage_up'] * stacks
             if 'defense' in buff:
-                self.modifiers[5] += buff['defense'] * stacks
+                self.defense += buff['defense'] * stacks
             if 'flat_atk' in buff:
-                self.modifiers[6] += buff['flat_atk'] * stacks
+                self.flat_atk += buff['flat_atk'] * stacks
             if 'crit_rate' in buff:
                 self.crit_rate += buff['crit_rate'] * stacks
             if 'crit_dmg' in buff:
                 self.crit_dmg += buff['crit_dmg'] * stacks
+            if 'core_dmg' in buff:
+                self.crit_dmg += buff['core_dmg'] * stacks
+            if 'range_dmg' in buff:
+                self.crit_dmg += buff['range_dmg'] * stacks
+            if 'full_burst_dmg' in buff:
+                self.crit_dmg += buff['full_burst_dmg'] * stacks
             # Bonus override flags
             if 'core_hit' in buff:
                 val = buff['core_hit']
@@ -276,25 +304,31 @@ class NIKKE:
             """
             stacks = int(buff.get('stacks', 1))
             if 'attack' in buff:
-                self.modifiers[0] -= buff['attack'] * stacks
+                self.attack -= buff['attack'] * stacks
             if 'charge_dmg' in buff:
-                self.modifiers[1] -= buff['charge_dmg'] * stacks
+                self.charge_dmg -= buff['charge_dmg'] * stacks
             if 'full_charge_dmg' in buff:
-                self.modifiers[1] -= (buff['full_charge_dmg'] - 100) * stacks
+                self.charge_dmg -= (buff['full_charge_dmg'] - 100) * stacks
             if 'damage_taken' in buff:
-                self.modifiers[2] -= buff['damage_taken'] * stacks
+                self.damage_taken -= buff['damage_taken'] * stacks
             if 'element_dmg' in buff:
-                self.modifiers[3] -= buff['element_dmg'] * stacks
+                self.element_dmg -= buff['element_dmg'] * stacks
             if 'damage_up' in buff:
-                self.modifiers[4] -= 1.0 + buff['damage_up'] / 100.0 * stacks
+                self.damage_up -= buff['damage_up'] * stacks
             if 'defense' in buff:
-                self.modifiers[5] -= buff['defense'] * stacks
+                self.defense -= buff['defense'] * stacks
             if 'flat_atk' in buff:
-                self.modifiers[6] -= buff['flat_atk'] * stacks
+                self.flat_atk -= buff['flat_atk'] * stacks
             if 'crit_rate' in buff:
                 self.crit_rate -= buff['crit_rate'] * stacks
             if 'crit_dmg' in buff:
                 self.crit_dmg -= buff['crit_dmg'] * stacks
+            if 'core_dmg' in buff:
+                self.crit_dmg -= buff['core_dmg'] * stacks
+            if 'range_dmg' in buff:
+                self.crit_dmg -= buff['range_dmg'] * stacks
+            if 'full_burst_dmg' in buff:
+                self.crit_dmg -= buff['full_burst_dmg'] * stacks
             # Bonus override flags
             if 'core_hit' in buff:
                 val = buff['core_hit']
@@ -384,41 +418,55 @@ class NIKKE:
             calc.add_buffs(buffs)
         else:
             calc = NIKKE.generate_cache(buffs)
-        calc.modifiers[0] = attack * calc.modifiers[0] / 100.0 \
-            - defense * calc.modifiers[5] / 100.0 + calc.modifiers[6]
-        calc.modifiers[1] /= 100.0
-        calc.modifiers[2] /= 100.0
-        calc.modifiers[3] = 1.0 if not element_bonus and calc.element_bonus <= 0 \
-            else calc.modifiers[3] / 100.0
-        calc.modifiers[4] /= 100.0
-        calc.modifiers[5] = 1.0
-        calc.modifiers[6] = 1.0
+        final_atk = attack * calc.attack / 100.0
+        target_def = - defense * calc.defense / 100.0
+        calc.charge_dmg /= 100.0
+        calc.damage_taken /= 100.0
+        calc.element_dmg = 1.0 if not element_bonus and calc.element_bonus <= 0 \
+            else calc.element_dmg / 100.0
+        calc.damage_up /= 100.0
+
+        base_dmg = (final_atk - target_def + calc.flat_atk) \
+            * calc.charge_dmg \
+            * calc.damage_taken \
+            * calc.element_dmg \
+            * calc.damage_up \
+            * damage / 100.0
 
         base_mod = 1.0
         if core_hit or calc.core_hit > 0:
-            base_mod += 1.0
+            base_mod += calc.core_dmg / 100.0
         if range_bonus or calc.range_bonus > 0:
-            base_mod += 0.3
+            base_mod += calc.range_bonus / 100.0
         if full_burst or calc.full_burst > 0:
-            base_mod += 0.5
+            base_mod += calc.full_burst_dmg / 100.0
 
-        crit_rate_p = calc.crit_rate / 100.0
-        crit_dmg_p = calc.crit_dmg / 100.0
+        crit_rate_p = min(1.0, calc.crit_rate / 100.0)
+        crit_dmg_p = max(0.0, calc.crit_dmg / 100.0)
         crit_mod = base_mod + crit_dmg_p
         avg_mod = base_mod * (1.0 - crit_rate_p) + crit_mod * crit_rate_p
 
-        final_atk = np.prod(calc.modifiers) * damage / 100.0
-        return final_atk * np.array([base_mod, crit_mod, avg_mod])
+        return base_dmg * np.array([base_mod, crit_mod, avg_mod])
 
     @staticmethod
-    def generate_cache(buffs: list, crit_rate: float = 15, crit_dmg: float = 50) -> ModifierCache:
+    def generate_cache(buffs: list,
+                       crit_rate: float = 15,
+                       crit_dmg: float = 50,
+                       core_dmg: float = 100,
+                       range_dmg: float = 30,
+                       full_burst_dmg: float = 50) -> ModifierCache:
         """Caches the modifier values and returns them in a dictionary.
 
         Use this function when looping to reduce the number of redundant
         computations from calling compute_damage() on a large buff list.
         """
         cache = NIKKE.ModifierCache(
-            np.array([100.0, 100.0, 100.0, 110.0, 100.0, 100.0, 0.0]), crit_rate, crit_dmg)
+            np.array([100.0, 100.0, 100.0, 110.0, 100.0, 100.0, 0.0]),
+                crit_rate=crit_rate,
+                crit_dmg=crit_dmg,
+                core_dmg=core_dmg,
+                range_dmg=range_dmg,
+                full_burst_dmg=full_burst_dmg)
         cache.add_buffs(buffs)
         return cache
 
@@ -445,7 +493,7 @@ class NIKKE:
             damage: float,
             attack: float,
             defense: float,
-            buffs: list or dict = None,
+            buffs: list = None,
             cache: ModifierCache = None) -> dict:
         """Computes the matrix of damage dealt by source to target for
         all possibilities of core hit, range bonus, and
@@ -806,8 +854,8 @@ class Examples:
         if damage is not None:
             params['damage'] = damage
         base_ammo = params['ammo']
-        params['ammo'] = int(base_ammo * (1 + ammo / 100))
-        params['reload'] *= (1 - reload / 100)
+        params['ammo'] = int(base_ammo * (1 + ammo / 100.0))
+        params['reload'] *= (1 - reload / 100.0)
         dps = NIKKE.compute_normal_dps(**params)
         peak = NIKKE.compute_peak_normal_dps(params['damage'], params['weapon'])
         ratio = dps / peak * 100
